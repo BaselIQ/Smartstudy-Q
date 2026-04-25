@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartStudy AI Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+}
+
+/* LOGIN */
+#loginPage {
+  display: flex;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-box {
+  background: rgba(255,255,255,0.05);
+  padding: 30px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  width: 300px;
+}
+
+input, textarea, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+button {
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+/* APP */
+#app {
+  display: none;
+}
+
+.sidebar {
+  width: 220px;
+  height: 100vh;
+  background: rgba(0,0,0,0.6);
+  position: fixed;
+  padding: 20px;
+}
+
+.main {
+  margin-left: 240px;
+  padding: 20px;
+}
+
+.card {
+  background: rgba(255,255,255,0.05);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  height: 10px;
+  background: #334155;
+  border-radius: 10px;
+}
+
+.progress {
+  height: 10px;
+  background: #22c55e;
+  border-radius: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-box">
+    <h2>Login</h2>
+    <input id="username" placeholder="Username">
+    <button onclick="login()">Enter</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <h3>SmartStudy</h3>
+    <button onclick="showPage('dashboard')">Dashboard</button>
+    <button onclick="showPage('planner')">Planner</button>
+    <button onclick="showPage('ai')">AI Tools</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div class="main">
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="page">
+      <div class="card">
+        <h2>Dashboard</h2>
+        <p>Total Tasks: <span id="totalTasks">0</span></p>
+        <p>Completed: <span id="completedTasks">0</span></p>
+      </div>
+    </div>
+
+    <!-- Planner -->
+    <div id="planner" class="page" style="display:none;">
+      <div class="card">
+        <h2>Add Task</h2>
+        <input id="taskName" placeholder="Task name">
+        <button onclick="addTask()">Add</button>
+      </div>
+
+      <div class="card">
+        <ul id="taskList"></ul>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div id="ai" class="page" style="display:none;">
+      <div class="card">
+        <h2>AI Summary</h2>
+        <textarea id="aiInput"></textarea>
+        <button onclick="runAI()">Generate</button>
+        <p id="aiOutput"></p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let user = localStorage.getItem("user");
+
+if (user) {
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  loadTasks();
+}
+
+function login() {
+  let username = document.getElementById("username").value;
+  if (!username) return;
+  localStorage.setItem("user", username);
+  location.reload();
+}
+
+function logout() {
+  localStorage.clear();
+  location.reload();
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.getElementById(page).style.display = 'block';
+}
+
+/* TASKS */
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+function saveTasks() {
+  localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+
+function addTask() {
+  let name = document.getElementById("taskName").value;
+  if (!name) return;
+
+  tasks.push({ name, done: false });
+  saveTasks();
+  renderTasks();
+}
+
+function renderTasks() {
+  let list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  let completed = 0;
+
+  tasks.forEach((task, i) => {
+    let li = document.createElement("li");
+    li.innerHTML = `
+      ${task.name}
+      <button onclick="toggleTask(${i})">✔</button>
+    `;
+    list.appendChild(li);
+    if (task.done) completed++;
+  });
+
+  document.getElementById("totalTasks").innerText = tasks.length;
+  document.getElementById("completedTasks").innerText = completed;
+}
+
+function toggleTask(i) {
+  tasks[i].done = !tasks[i].done;
+  saveTasks();
+  renderTasks();
+}
+
+renderTasks();
+
+/* AI */
+async function runAI() {
+  let input = document.getElementById("aiInput").value;
+
+  // ⚠️ Replace with your OpenAI API key if you have one
+  const API_KEY = "YOUR_API_KEY_HERE";
+
+  if (API_KEY === "YOUR_API_KEY_HERE") {
+    // fallback (fake AI)
+    document.getElementById("aiOutput").innerText =
+      input.split(".").slice(0,2).join(".") + ".";
+    return;
+  }
+
+  let response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [{role:"user", content:"Summarize this: " + input}]
+    })
+  });
+
+  let data = await response.json();
+  document.getElementById("aiOutput").innerText =
+    data.choices[0].message.content;
+}
+</script>
+
+</body>
+</html>
