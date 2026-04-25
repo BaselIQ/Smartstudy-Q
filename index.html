@@ -3,83 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SmartStudy AI Pro</title>
+<title>SmartStudy AI</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+:root {
+  --bg: #0f172a;
+  --card: rgba(255,255,255,0.05);
+  --text: white;
+}
+
+.light {
+  --bg: #f1f5f9;
+  --card: white;
+  --text: black;
+}
+
 body {
   margin: 0;
   font-family: 'Poppins', sans-serif;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: white;
+  background: var(--bg);
+  color: var(--text);
+  transition: 0.3s;
 }
 
-/* LOGIN */
 #loginPage {
-  display: flex;
-  height: 100vh;
-  justify-content: center;
-  align-items: center;
+  display:flex; justify-content:center; align-items:center; height:100vh;
 }
 
-.login-box {
-  background: rgba(255,255,255,0.05);
+.box {
+  background: var(--card);
   padding: 30px;
   border-radius: 15px;
   backdrop-filter: blur(10px);
-  width: 300px;
 }
 
-input, textarea, select, button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  border-radius: 8px;
-  border: none;
+input, textarea, button {
+  width: 100%; padding:10px; margin-top:10px; border-radius:8px; border:none;
 }
 
 button {
-  background: #3b82f6;
-  color: white;
-  cursor: pointer;
-}
-
-/* APP */
-#app {
-  display: none;
+  background: linear-gradient(135deg,#3b82f6,#6366f1);
+  color:white;
+  cursor:pointer;
 }
 
 .sidebar {
-  width: 220px;
-  height: 100vh;
-  background: rgba(0,0,0,0.6);
-  position: fixed;
-  padding: 20px;
+  width:220px; height:100vh; position:fixed; padding:20px;
+  background:rgba(0,0,0,0.6);
 }
 
-.main {
-  margin-left: 240px;
-  padding: 20px;
-}
+.main { margin-left:240px; padding:20px; }
 
 .card {
-  background: rgba(255,255,255,0.05);
-  padding: 20px;
-  border-radius: 15px;
-  margin-bottom: 20px;
+  background: var(--card);
+  padding:20px;
+  border-radius:16px;
+  margin-bottom:20px;
+  transition:0.3s;
+}
+.card:hover { transform:translateY(-5px); }
+
+.page { animation:fade 0.4s ease; }
+
+@keyframes fade {
+  from{opacity:0; transform:translateY(10px);}
+  to{opacity:1; transform:translateY(0);}
 }
 
-.progress-bar {
-  height: 10px;
-  background: #334155;
-  border-radius: 10px;
-}
-
-.progress {
-  height: 10px;
-  background: #22c55e;
-  border-radius: 10px;
+@media(max-width:768px){
+  .sidebar{position:relative;width:100%;height:auto;}
+  .main{margin-left:0;}
 }
 </style>
 </head>
@@ -88,20 +84,22 @@ button {
 
 <!-- LOGIN -->
 <div id="loginPage">
-  <div class="login-box">
+  <div class="box">
     <h2>Login</h2>
     <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
     <button onclick="login()">Enter</button>
   </div>
 </div>
 
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none;">
   <div class="sidebar">
     <h3>SmartStudy</h3>
     <button onclick="showPage('dashboard')">Dashboard</button>
     <button onclick="showPage('planner')">Planner</button>
-    <button onclick="showPage('ai')">AI Tools</button>
+    <button onclick="showPage('ai')">AI</button>
+    <button onclick="toggleTheme()">Theme</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -111,8 +109,15 @@ button {
     <div id="dashboard" class="page">
       <div class="card">
         <h2>Dashboard</h2>
-        <p>Total Tasks: <span id="totalTasks">0</span></p>
-        <p>Completed: <span id="completedTasks">0</span></p>
+        <p>Total: <span id="totalTasks">0</span></p>
+        <p>Done: <span id="completedTasks">0</span></p>
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Study Timer</h2>
+        <h1 id="timer">25:00</h1>
+        <button onclick="startTimer()">Start</button>
       </div>
     </div>
 
@@ -120,7 +125,7 @@ button {
     <div id="planner" class="page" style="display:none;">
       <div class="card">
         <h2>Add Task</h2>
-        <input id="taskName" placeholder="Task name">
+        <input id="taskName">
         <button onclick="addTask()">Add</button>
       </div>
 
@@ -132,7 +137,7 @@ button {
     <!-- AI -->
     <div id="ai" class="page" style="display:none;">
       <div class="card">
-        <h2>AI Summary</h2>
+        <h2>AI Assistant</h2>
         <textarea id="aiInput"></textarea>
         <button onclick="runAI()">Generate</button>
         <p id="aiOutput"></p>
@@ -143,104 +148,109 @@ button {
 </div>
 
 <script>
-let user = localStorage.getItem("user");
-
-if (user) {
-  document.getElementById("loginPage").style.display = "none";
-  document.getElementById("app").style.display = "block";
-  loadTasks();
+/* LOGIN */
+if(localStorage.getItem("user")){
+  document.getElementById("loginPage").style.display="none";
+  document.getElementById("app").style.display="block";
 }
 
-function login() {
-  let username = document.getElementById("username").value;
-  if (!username) return;
-  localStorage.setItem("user", username);
+/* AUTH */
+function login(){
+  let u=username.value, p=password.value;
+  if(!u||!p)return alert("Fill all fields");
+  localStorage.setItem("user",u);
   location.reload();
 }
-
-function logout() {
-  localStorage.clear();
-  location.reload();
+function logout(){
+  localStorage.clear(); location.reload();
 }
 
-function showPage(page) {
-  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-  document.getElementById(page).style.display = 'block';
+/* THEME */
+function toggleTheme(){
+  document.body.classList.toggle("light");
+}
+
+/* NAV */
+function showPage(p){
+  document.querySelectorAll(".page").forEach(x=>x.style.display="none");
+  document.getElementById(p).style.display="block";
 }
 
 /* TASKS */
-let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+let tasks=JSON.parse(localStorage.getItem("tasks"))||[];
 
-function saveTasks() {
-  localStorage.setItem("tasks", JSON.stringify(tasks));
+function save(){ localStorage.setItem("tasks",JSON.stringify(tasks)); }
+
+function addTask(){
+  if(!taskName.value)return;
+  tasks.push({name:taskName.value,done:false});
+  taskName.value="";
+  save(); render();
+  notify("Task added");
 }
 
-function addTask() {
-  let name = document.getElementById("taskName").value;
-  if (!name) return;
-
-  tasks.push({ name, done: false });
-  saveTasks();
-  renderTasks();
+function toggle(i){
+  tasks[i].done=!tasks[i].done;
+  save(); render();
 }
 
-function renderTasks() {
-  let list = document.getElementById("taskList");
-  list.innerHTML = "";
+function render(){
+  let list=document.getElementById("taskList");
+  list.innerHTML="";
+  let done=0;
 
-  let completed = 0;
-
-  tasks.forEach((task, i) => {
-    let li = document.createElement("li");
-    li.innerHTML = `
-      ${task.name}
-      <button onclick="toggleTask(${i})">✔</button>
-    `;
+  tasks.forEach((t,i)=>{
+    let li=document.createElement("li");
+    li.innerHTML=`${t.name} <button onclick="toggle(${i})">✔</button>`;
     list.appendChild(li);
-    if (task.done) completed++;
+    if(t.done)done++;
   });
 
-  document.getElementById("totalTasks").innerText = tasks.length;
-  document.getElementById("completedTasks").innerText = completed;
+  totalTasks.innerText=tasks.length;
+  completedTasks.innerText=done;
+
+  drawChart(done,tasks.length);
+}
+render();
+
+/* CHART */
+function drawChart(done,total){
+  let ctx=document.getElementById("chart");
+  new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['Done','Left'],datasets:[{data:[done,total-done]}]}
+  });
 }
 
-function toggleTask(i) {
-  tasks[i].done = !tasks[i].done;
-  saveTasks();
-  renderTasks();
+/* TIMER */
+let t=1500, int;
+function startTimer(){
+  clearInterval(int);
+  int=setInterval(()=>{
+    if(t<=0)return clearInterval(int);
+    t--;
+    let m=Math.floor(t/60), s=t%60;
+    timer.innerText=`${m}:${s.toString().padStart(2,'0')}`;
+  },1000);
 }
-
-renderTasks();
 
 /* AI */
-async function runAI() {
-  let input = document.getElementById("aiInput").value;
+function runAI(){
+  let input=aiInput.value;
+  aiOutput.innerText=
+`Summary:
+${input.split(".").slice(0,2).join(".")}.
 
-  // ⚠️ Replace with your OpenAI API key if you have one
-  const API_KEY = "YOUR_API_KEY_HERE";
+Key Idea:
+Focuses on ${input.split(" ")[0]}.
 
-  if (API_KEY === "YOUR_API_KEY_HERE") {
-    // fallback (fake AI)
-    document.getElementById("aiOutput").innerText =
-      input.split(".").slice(0,2).join(".") + ".";
-    return;
-  }
+Question:
+Explain ${input.split(" ")[0]}.`;
+}
 
-  let response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + API_KEY,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{role:"user", content:"Summarize this: " + input}]
-    })
-  });
-
-  let data = await response.json();
-  document.getElementById("aiOutput").innerText =
-    data.choices[0].message.content;
+/* NOTIFICATION */
+function notify(msg){
+  alert(msg);
 }
 </script>
 
